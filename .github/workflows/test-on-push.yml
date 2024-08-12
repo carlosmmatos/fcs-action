@@ -23,4 +23,4 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         if: steps.fcs.outputs.exit-code != 0
         with:
-          sarif_file: *-scan-results.sarif
+          sarif_file: ./
