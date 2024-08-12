@@ -11,13 +11,16 @@ jobs:
 
       - name: Test FCS CLI IaC Scan
         uses: ./
+        id: fcs
         with:
           falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
           falcon_region: ${{ vars.FALCON_CLOUD_REGION }}
-          path: tests/
+          config: './fcs-config.json'
         env:
           FALCON_CLIENT_SECRET: ${{ secrets.FALCON_CLIENT_SECRET }}
 
-      - name: Show scan results
-        run: |
-          cat *-scan-results.json
+      - name: Upload SARIF report to GitHub Code scanning
+        uses: github/codeql-action/upload-sarif@v2
+        if: steps.fcs.outputs.exit-code != 0
+        with:
+          sarif_file: ./*-scan-results.sarif
