@@ -2,15 +2,15 @@ name: Edge Case Tests
 on:
   push:
   pull_request_target:
-    types: [labeled]
+    # types: [labeled]
 
 jobs:
   test-ia-scan-vuln-only:
-    if: |
-      github.event_name == 'push' ||
-      github.event_name == 'schedule' ||
-      (github.event_name == 'pull_request_target' &&
-      github.event.label.name == 'ok-to-test')
+    # if: |
+    #   github.event_name == 'push' ||
+    #   github.event_name == 'schedule' ||
+    #   (github.event_name == 'pull_request_target' &&
+    #   github.event.label.name == 'ok-to-test')
     runs-on: ubuntu-latest
     environment: "Falcon Creds"
     permissions:
@@ -51,11 +51,11 @@ jobs:
           sarif_file: image-scan-results/
 
   test-ia-scan-sbom-only:
-    if: |
-      github.event_name == 'push' ||
-      github.event_name == 'schedule' ||
-      (github.event_name == 'pull_request_target' &&
-      github.event.label.name == 'ok-to-test')
+    # if: |
+    #   github.event_name == 'push' ||
+    #   github.event_name == 'schedule' ||
+    #   (github.event_name == 'pull_request_target' &&
+    #   github.event.label.name == 'ok-to-test')
     runs-on: ubuntu-latest
     environment: "Falcon Creds"
     permissions:
@@ -87,11 +87,11 @@ jobs:
           cat image-scan-results/*.cdx.json
 
   test-ia-scan-json-upload:
-    if: |
-      github.event_name == 'push' ||
-      github.event_name == 'schedule' ||
-      (github.event_name == 'pull_request_target' &&
-      github.event.label.name == 'ok-to-test')
+    # if: |
+    #   github.event_name == 'push' ||
+    #   github.event_name == 'schedule' ||
+    #   (github.event_name == 'pull_request_target' &&
+    #   github.event.label.name == 'ok-to-test')
     runs-on: ubuntu-latest
     environment: "Falcon Creds"
     permissions:
