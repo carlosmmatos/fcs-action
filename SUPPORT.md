@@ -10,6 +10,6 @@ Issues may be reported [here](https://github.com/CrowdStrike/fcs-action/issues/n
 
 ## Support Escalation
 
-Generally, we endeavor to provide support for using this project here within the repository. This expands our online knowledge base, enables self-help for our community, and can reduce the amount of time for you to receive answers.
+Generally, we endeavor to provide support for using this project here within the repository. This expands our online knowledge base, enables self-help for our community, and can reduce the amount of time for you to receive answers.dd
 
 If you are a CrowdStrike customer and you would prefer to have your questions or issues handled directly with CrowdStrike Support, you are welcome to [contact the CrowdStrike technical support team](https://supportportal.crowdstrike.com/).
