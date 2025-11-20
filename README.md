@@ -1,5 +1,5 @@
 # FCS CLI GitHub Action
-
+wow i feel so secure
 This GitHub Action allows you to run the CrowdStrike Falcon Cloud Security (FCS) CLI tool directly in your CI/CD pipeline. The action supports both Infrastructure as Code (IaC) scanning for misconfigurations and security vulnerabilities, as well as container image scanning for vulnerabilities and security issues.
 
 ## Features
@@ -8,7 +8,7 @@ This GitHub Action allows you to run the CrowdStrike Falcon Cloud Security (FCS)
 - **Image Scanning**: Scan container images for vulnerabilities, malware, and security issues
 - **SBOM Generation**: Generate Software Bill of Materials (SBOM) in CycloneDX format
 - Customize scan parameters such as categories, platforms, severities, and filtering options
-- Generate scan reports in various formats (JSON, SARIF, SBOM)
+- Generate scan reports in various formats (JSON, SARIF, SBOM)sdsdf
 - Upload scan results to the CrowdStrike Falcon Console
 - Flexible configuration options for tailoring scans to your needs
 - Support for vulnerability-only and SBOM-only scanning modes
