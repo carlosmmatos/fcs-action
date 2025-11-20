@@ -3,15 +3,15 @@ name: Test Action (push)
 on:
   push:
   pull_request_target:
-    types: [labeled]
+    # types: [labeled]
 
 jobs:
   test-ia-scan:
-    if: |
-      github.event_name == 'push' ||
-      github.event_name == 'schedule' ||
-      (github.event_name == 'pull_request_target' &&
-      github.event.label.name == 'ok-to-test')
+    # if: |
+    #   github.event_name == 'push' ||
+    #   github.event_name == 'schedule' ||
+    #   (github.event_name == 'pull_request_target' &&
+    #   github.event.label.name == 'ok-to-test')
     runs-on: ubuntu-latest
     environment: "Falcon Creds"
     permissions:
@@ -52,11 +52,11 @@ jobs:
           sarif_file: image-scan-results/
 
   test-iac-scan:
-    if: |
-      github.event_name == 'push' ||
-      github.event_name == 'schedule' ||
-      (github.event_name == 'pull_request_target' &&
-      github.event.label.name == 'ok-to-test')
+    # if: |
+    #   github.event_name == 'push' ||
+    #   github.event_name == 'schedule' ||
+    #   (github.event_name == 'pull_request_target' &&
+    #   github.event.label.name == 'ok-to-test')
     runs-on: ubuntu-latest
     environment: "Falcon Creds"
     name: Quick IaC Test
@@ -101,11 +101,11 @@ jobs:
           sarif_file: iac-scan-results
 
   test-iac-scan-output:
-    if: |
-      github.event_name == 'push' ||
-      github.event_name == 'schedule' ||
-      (github.event_name == 'pull_request_target' &&
-      github.event.label.name == 'ok-to-test')
+    # if: |
+    #   github.event_name == 'push' ||
+    #   github.event_name == 'schedule' ||
+    #   (github.event_name == 'pull_request_target' &&
+    #   github.event.label.name == 'ok-to-test')
     runs-on: ubuntu-latest
     environment: "Falcon Creds"
     name: IaC file as output path
