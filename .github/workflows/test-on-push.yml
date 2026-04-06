@@ -32,7 +32,7 @@ jobs:
           falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
           falcon_region: ${{ vars.FALCON_CLOUD_REGION }}
           scan_type: image
-          output_path: image-scan-results/image_scan_results.json
+          # output_path: image-scan-results/image_scan_results.json
           image: nginx:latest
           report_formats: sarif
           minimum_severity: medium
