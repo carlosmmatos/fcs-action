@@ -43,22 +43,56 @@ Create a GitHub secret in your repository to store the CrowdStrike API Client se
 | **`>= 1.0.0`** and **`< 2.0.0`**  | **`>= 1.1.0`** and **`< 2.0.0`** |
 | **`< 1.0.0`**       | **`< 1.1.0`**          |
 
+## Important Changes in FCS CLI 2.2.0
+
+> [!IMPORTANT]
+> FCS CLI version 2.2.0 introduces a breaking change for IaC scanning when using multiple report formats.
+
+### IaC: Multiple Report Formats Require Directory Path
+
+**What Changed:** When requesting multiple report formats (e.g., `json,sarif`), the `output_path` parameter must now be a **directory path**, not a file path.
+
+**Migration Required:**
+- **Before (CLI < 2.2.0):** `output_path: './my-report.out'` with `report_formats: 'json,sarif'` ✅
+- **After (CLI >= 2.2.0):** `output_path: './reports'` with `report_formats: 'json,sarif'` ✅
+- **After (CLI >= 2.2.0):** `output_path: './my-report.out'` with `report_formats: 'json,sarif'` ❌ **Will fail**
+
+**Valid Configurations:**
+```yaml
+# Single format - file path is OK
+report_formats: 'json'
+output_path: './my-report.json'
+
+# Multiple formats - must use directory path
+report_formats: 'json,sarif'
+output_path: './reports'
+
+# Multiple formats - omit output_path to use defaults
+report_formats: 'json,sarif'
+# Uses default: ~/.crowdstrike/reports/
+```
+
+**Why This Changed:** This ensures consistent file naming when generating multiple report formats and prevents file naming conflicts.
+
 ## Usage
 
 To use this action in your workflow, add the following step:
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Run FCS IaC Scan
-  uses: crowdstrike/fcs-action@v2.1.0
+  uses: crowdstrike/fcs-action@v4.0.0
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-1'
     path: './my-iac-directory'
-    project_name: 'my-awesome-project'
+    project_name: '${{ github.repository }}/${{ github.ref_name }}'
   env:
     FALCON_CLIENT_SECRET: ${{ secrets.FALCON_CLIENT_SECRET }}
 ```
 <!-- x-release-please-end -->
+
+> [!TIP]
+> The `project_name` above uses [GitHub context](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#github-context) variables to distinguish scan results across repositories and branches.
 
 ## Environment Variables
 
@@ -91,7 +125,7 @@ To use this action in your workflow, add the following step:
 | Input | Description | Required | Default | Example/Values |
 | ----- | ----------- | -------- | ------- | -------------- |
 | `path` | Path to scan (file/dir/git repo) | No | - | `./dir`</br>`git::repo`</br>`file.tf` |
-| `output_path` | Path to save scan results</br>**NOTE: Must be a directory** | No | `./` | `./scan-results` |
+| `output_path` | Path to save scan results</br>**NOTE: Must be a directory when using multiple report formats** (FCS CLI 2.2.0+) | No | `./` | `./scan-results` |
 | `report_formats` | List of output formats for reports | No | `json` | **Allowed values**:</br>json, csv, junit, sarif |
 | `config` | Path to configuration file | No | - | `./fcs-config.json` |
 | `policy_rule` | IaC scanning policy rule | No | `local` | **Allowed values**:</br>local</br>default-iac-alert-rule |
@@ -123,7 +157,7 @@ To use this action in your workflow, add the following step:
 | ----- | ----------- | -------- | ------- | -------------- |
 | `image` | Container image to scan | **Yes*** | - | `nginx:latest`</br>`quay.io/org/app:v1.0` |
 | `output_path` | File path to save scan results.</br>**NOTE: must be a file, not a directory.** | No |  | `./scan-results.json` |
-| `report_formats` | A **single** output format for generated report | No | `json` | **Allowed values**:</br>**Image**: json, sarif, sbom-cylconedx |
+| `report_formats` | A **single** output format for generated report | No | `json` | **Allowed values**:</br>**Image**: json, sarif, cyclonedx-json |
 | `socket` | Custom container engine socket | No | - | `unix:///var/run/docker.sock` |
 | `platform` | Target platform (os/arch/variant) | No | `linux/amd64` | `linux/amd64`</br>`linux/arm64`</br>`windows/amd64` |
 | `temp_dir` | Custom temp directory | No | - | `/local/tmp` |
@@ -134,6 +168,9 @@ To use this action in your workflow, add the following step:
 | ----- | ----------- | -------- | ------- | -------------- |
 | `vulnerability_only` | Scan vulnerabilities only | No | `false` | **Allowed values**:</br>true</br>false |
 | `sbom_only` | Generate SBOM only | No | `false` | **Allowed values**:</br>true</br>false |
+| `strict_digest` | Enable strict digest validation</br>(requires FCS CLI 2.2.0+) | No | `false` | **Allowed values**:</br>true</br>false |
+
+> **Note on strict_digest:** When enabled, image scans enforce digest validation to ensure consistency between build and registry. The scan will fail if the image has uncompressed layers that cannot be pulled from a registry with correct digests. This feature helps with image traceability in compliance scenarios. When disabled (default), scans proceed with a warning if uncompressed layers are detected.
 
 #### Vulnerability Filtering
 
@@ -234,7 +271,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Run FCS IaC Scan
-  uses: crowdstrike/fcs-action@v2.1.0
+  uses: crowdstrike/fcs-action@v4.0.0
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-1'
@@ -248,7 +285,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Run FCS IaC Scan
-  uses: crowdstrike/fcs-action@v2.1.0
+  uses: crowdstrike/fcs-action@v4.0.0
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-2'
@@ -263,7 +300,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Run FCS IaC Scan
-  uses: crowdstrike/fcs-action@v2.1.0
+  uses: crowdstrike/fcs-action@v4.0.0
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-2'
@@ -278,7 +315,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Run FCS IaC Scan with Project Name
-  uses: crowdstrike/fcs-action@v2.1.0
+  uses: crowdstrike/fcs-action@v4.0.0
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-1'
@@ -296,7 +333,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Run FCS IaC Scan
-  uses: crowdstrike/fcs-action@v2.1.0
+  uses: crowdstrike/fcs-action@v4.0.0
   id: fcs
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
@@ -319,7 +356,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Run FCS IaC Scan
-  uses: crowdstrike/fcs-action@v2.1.0
+  uses: crowdstrike/fcs-action@v4.0.0
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-2'
@@ -338,13 +375,31 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Scan Container Image
-  uses: crowdstrike/fcs-action@v2.1.0
+  uses: crowdstrike/fcs-action@v4.0.0
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-1'
     scan_type: image
     image: nginx:latest
-    output_path: './image-scan-results/'
+    output_path: './image-scan-results.json'
+    report_formats: json
+  env:
+    FALCON_CLIENT_SECRET: ${{ secrets.FALCON_CLIENT_SECRET }}
+```
+<!-- x-release-please-end -->
+
+### Image scan with strict digest validation (FCS CLI 2.2.0+)
+<!-- x-release-please-start-version -->
+```yaml
+- name: Scan Container Image with Strict Digest Validation
+  uses: crowdstrike/fcs-action@v4.0.0
+  with:
+    falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
+    falcon_region: 'us-1'
+    scan_type: image
+    image: nginx:latest
+    strict_digest: true
+    output_path: './image-scan-results.json'
     report_formats: json
   env:
     FALCON_CLIENT_SECRET: ${{ secrets.FALCON_CLIENT_SECRET }}
@@ -355,13 +410,13 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Scan Container Image
-  uses: crowdstrike/fcs-action@v2.1.0
+  uses: crowdstrike/fcs-action@v4.0.0
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-1'
     scan_type: image
     image: nginx:latest
-    output_path: './image-scan-results/'
+    output_path: './image-scan-results.json'
     report_formats: json
   env:
     FALCON_CLIENT_SECRET: ${{ secrets.FALCON_CLIENT_SECRET }}
@@ -376,7 +431,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Scan Image for Vulnerabilities Only
-  uses: crowdstrike/fcs-action@v2.1.0
+  uses: crowdstrike/fcs-action@v4.0.0
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-2'
@@ -386,8 +441,8 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
     minimum_severity: high
     minimum_score: 7.0
     vuln_fixable_only: true
-    report_formats: json,sarif
-    output_path: './vuln-results/'
+    report_formats: json
+    output_path: './vuln-results.json'
   env:
     FALCON_CLIENT_SECRET: ${{ secrets.FALCON_CLIENT_SECRET }}
 ```
@@ -397,15 +452,15 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Generate SBOM
-  uses: crowdstrike/fcs-action@v2.1.0
+  uses: crowdstrike/fcs-action@v4.0.0
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'eu-1'
     scan_type: image
     image: python:3.9-slim
     sbom_only: true
-    report_formats: sbom-cylconedx
-    output_path: './sbom-results/'
+    report_formats: cyclonedx-json
+    output_path: './sbom-results.json'
   env:
     FALCON_CLIENT_SECRET: ${{ secrets.FALCON_CLIENT_SECRET }}
 ```
@@ -415,7 +470,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Advanced Image Scan
-  uses: crowdstrike/fcs-action@v2.1.0
+  uses: crowdstrike/fcs-action@v4.0.0
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-1'
@@ -429,7 +484,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
     report_sort_by: severity/desc
     no_color: true
     platform: linux/amd64
-    output_path: './detailed-scan-results/'
+    output_path: './detailed-scan-results.json'
     report_formats: json
   env:
     FALCON_CLIENT_SECRET: ${{ secrets.FALCON_CLIENT_SECRET }}
@@ -440,7 +495,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Scan and Upload to Falcon
-  uses: crowdstrike/fcs-action@v2.1.0
+  uses: crowdstrike/fcs-action@v4.0.0
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-1'
@@ -448,7 +503,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
     image: myapp:latest
     upload_results: true
     minimum_severity: low
-    output_path: './upload-results/'
+    output_path: './upload-results.json'
     report_formats: json
   env:
     FALCON_CLIENT_SECRET: ${{ secrets.FALCON_CLIENT_SECRET }}
@@ -459,7 +514,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Scan Multi-Platform Image
-  uses: crowdstrike/fcs-action@v2.1.0
+  uses: crowdstrike/fcs-action@v4.0.0
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-2'
@@ -468,7 +523,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
     platform: linux/arm64
     minimum_detection_severity: medium
     temp_dir: './custom-temp'
-    output_path: './multi-platform-results/'
+    output_path: './multi-platform-results.json'
   env:
     FALCON_CLIENT_SECRET: ${{ secrets.FALCON_CLIENT_SECRET }}
 ```
@@ -482,7 +537,7 @@ You can also use configuration files to customize the scan parameters. For more 
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Run FCS IaC Scan
-  uses: crowdstrike/fcs-action@v2.1.0
+  uses: crowdstrike/fcs-action@v4.0.0
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-1'
