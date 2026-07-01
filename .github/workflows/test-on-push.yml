@@ -34,6 +34,7 @@ jobs:
           scan_type: image
           output_path: image-scan-results/image_scan_results.json
           image: nginx:latest
+          platform: linux/amd64
           report_formats: sarif
           minimum_severity: medium
           timeout: 600

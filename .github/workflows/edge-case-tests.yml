@@ -34,6 +34,7 @@ jobs:
           output_path: image-scan-results/image_scan_results.sarif
           vulnerability_only: true
           image: nginx:latest
+          platform: linux/amd64
           report_formats: sarif
           minimum_severity: medium
         env:
