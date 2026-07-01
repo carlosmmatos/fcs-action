@@ -46,10 +46,14 @@ convert_json_to_sarif() {
     if [[ -f "$FCS_CLI_OUTPUT_FILE" ]]; then
         log "convert_json_to_sarif: Parsing CLI output from $FCS_CLI_OUTPUT_FILE"
 
-        # Extract file paths from "Results saved to file: <path>" lines
+        # Extract file paths from "Results saved to file: <path>" lines.
+        # The CLI wraps these lines in ANSI color codes (e.g. \e[1m...\e[0m), so
+        # strip them before matching the extension - otherwise the path ends in
+        # the reset sequence rather than .json and gets filtered out.
         all_json_files=$(grep "Results saved to file:" "$FCS_CLI_OUTPUT_FILE" | \
+                        sed 's/\x1b\[[0-9;]*m//g' | \
                         sed 's/.*Results saved to file: //' | \
-                        grep '\.json$' | \
+                        grep -E '\.(json|sarif)$' | \
                         sort)
 
         if [[ -n "$all_json_files" ]]; then
@@ -70,8 +74,15 @@ convert_json_to_sarif() {
             if [[ -n "$json_file" && -f "$json_file" ]]; then
                 ((total_count++))
 
-                # Generate SARIF filename
-                local sarif_file="${json_file%.json}.sarif"
+                # Generate SARIF filename. A source file already ending in
+                # .sarif holds JSON content (the CLI has no sarif format), so
+                # convert it in place; otherwise .json becomes .sarif.
+                local sarif_file
+                if [[ "$json_file" == *.sarif ]]; then
+                    sarif_file="$json_file"
+                else
+                    sarif_file="${json_file%.json}.sarif"
+                fi
 
                 log "convert_json_to_sarif: Converting $json_file to $sarif_file"
 
