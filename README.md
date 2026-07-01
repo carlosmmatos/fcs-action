@@ -43,6 +43,62 @@ Create a GitHub secret in your repository to store the CrowdStrike API Client se
 | **`>= 1.0.0`** and **`< 2.0.0`**  | **`>= 1.1.0`** and **`< 2.0.0`** |
 | **`< 1.0.0`**       | **`< 1.1.0`**          |
 
+## What's New in FCS CLI 2.3.x
+
+> [!NOTE]
+> FCS CLI version 2.3.x introduces multi-architecture image scanning support. The FCS Action automatically handles these changes - no workflow modifications required.
+
+### Multi-Architecture Image Scanning
+
+**What's New:** When scanning multi-architecture (multi-arch) images, the FCS CLI now scans **all architecture variants by default** instead of only the host architecture.
+
+**What This Means for Your Workflows:**
+
+- **Multiple Report Files**: If you scan a multi-arch image (e.g., `nginx:latest`), you'll receive separate reports for each architecture (linux/amd64, linux/arm64, etc.)
+- **Exit Codes**: The action returns a non-zero exit code if ANY architecture variant fails your assessment criteria
+- **No Changes Needed**: The action automatically discovers and processes all generated reports
+
+### Controlling Which Architectures to Scan
+
+**Scan all architectures (default):**
+
+<!-- x-release-please-start-version -->
+```yaml
+- name: Scan All Architectures
+  uses: crowdstrike/fcs-action@v4.0.1
+  with:
+    scan_type: image
+    image: nginx:latest
+    # Omit platform parameter to scan all architectures
+```
+<!-- x-release-please-end -->
+
+**Scan specific architectures only:**
+
+<!-- x-release-please-start-version -->
+```yaml
+- name: Scan Specific Architectures
+  uses: crowdstrike/fcs-action@v4.0.1
+  with:
+    scan_type: image
+    image: nginx:latest
+    platform: linux/amd64,linux/arm64  # New: Comma-separated list
+```
+<!-- x-release-please-end -->
+
+**Scan single architecture (previous behavior):**
+
+<!-- x-release-please-start-version -->
+```yaml
+- name: Scan Single Architecture
+  uses: crowdstrike/fcs-action@v4.0.1
+  with:
+    scan_type: image
+    image: nginx:latest
+    platform: linux/amd64  # Only scan amd64
+```
+<!-- x-release-please-end -->
+
 ## Important Changes in FCS CLI 2.2.0
 
 > [!IMPORTANT]
@@ -80,7 +136,7 @@ To use this action in your workflow, add the following step:
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Run FCS IaC Scan
-  uses: crowdstrike/fcs-action@v4.0.0
+  uses: crowdstrike/fcs-action@v4.0.1
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-1'
@@ -125,7 +181,7 @@ To use this action in your workflow, add the following step:
 | Input | Description | Required | Default | Example/Values |
 | ----- | ----------- | -------- | ------- | -------------- |
 | `path` | Path to scan (file/dir/git repo) | No | - | `./dir`</br>`git::repo`</br>`file.tf` |
-| `output_path` | Path to save scan results</br>**NOTE: Must be a directory when using multiple report formats** (FCS CLI 2.2.0+) | No | `./` | `./scan-results` |
+| `output_path` | Path to save scan results</br>**NOTE: Must be a directory when using multiple report formats** (FCS CLI 2.2.0+) | No | (uses CLI default) | `./scan-results/` |
 | `report_formats` | List of output formats for reports | No | `json` | **Allowed values**:</br>json, csv, junit, sarif |
 | `config` | Path to configuration file | No | - | `./fcs-config.json` |
 | `policy_rule` | IaC scanning policy rule | No | `local` | **Allowed values**:</br>local</br>default-iac-alert-rule |
@@ -156,10 +212,10 @@ To use this action in your workflow, add the following step:
 | Input | Description | Required | Default | Example/Values |
 | ----- | ----------- | -------- | ------- | -------------- |
 | `image` | Container image to scan | **Yes*** | - | `nginx:latest`</br>`quay.io/org/app:v1.0` |
-| `output_path` | File path to save scan results.</br>**NOTE: must be a file, not a directory.** | No |  | `./scan-results.json` |
+| `output_path` | File path to save scan results.</br>**NOTE: must be a file path ending with .json, .sarif, or .cdx.json**</br>Omit to use CLI default: `~/.crowdstrike/image_assessment/reports/` | No | (uses CLI default) | `./scan-results.json` |
 | `report_formats` | A **single** output format for generated report | No | `json` | **Allowed values**:</br>**Image**: json, sarif, cyclonedx-json |
 | `socket` | Custom container engine socket | No | - | `unix:///var/run/docker.sock` |
-| `platform` | Target platform (os/arch/variant) | No | `linux/amd64` | `linux/amd64`</br>`linux/arm64`</br>`windows/amd64` |
+| `platform` | Target platform(s). Single value or comma-separated list (FCS CLI >= 2.3.0) | No | - | `linux/amd64`</br>`linux/amd64,linux/arm64`</br>`windows/amd64` |
 | `temp_dir` | Custom temp directory | No | - | `/local/tmp` |
 
 #### Scan Mode Options
@@ -244,26 +300,37 @@ For use with `platforms` and `exclude_platforms` parameters:
 
 | Output | Description |
 | ------ | ----------- |
-| `exit-code` | Exit code of the FCS CLI tool. Returns `0` on success, non-zero when vulnerabilities match `fail_on` criteria or scan errors occur |
+| `exit-code` | Exit code of the FCS CLI tool. Returns `0` on success, non-zero on scan findings or errors. See [Controlling Pipeline Flow](#controlling-pipeline-flow-with-fcs-cli-exit-codes) for details on how exit codes differ between IaC and image scans |
 
 ## Controlling Pipeline Flow with FCS CLI Exit Codes
 
-The FCS action provides an `exit-code` output that allows you to control whether your pipeline continues or stops based on scan results. This is useful when you want to conditionally run subsequent steps based on scan outcomes
+The FCS action provides an `exit-code` output that allows you to control whether your pipeline continues or stops based on scan results. This is useful when you want to conditionally run subsequent steps based on scan outcomes.
 
 ### How Exit Codes Work
 
-The exit code of the action should remain `0` which denotes a successful run of the action, while the output `exit-code` reflects the result of the FCS CLI scan:
+The exit code of the action itself should remain `0` which denotes a successful run of the action, while the output `exit-code` reflects the result of the FCS CLI scan. Exit code behavior differs between IaC and image scans:
 
-- **`0`**: Scan completed successfully with no issues matching your `fail_on` criteria
-- **Non-zero**: Scan found vulnerabilities/issues that match your `fail_on` criteria, or an error occurred
+#### IaC Scans
 
-The exit code behavior is controlled by the `fail_on` parameter:
+For IaC scans, the exit code is controlled locally by the `fail_on` parameter:
+
+- **`0`**: Scan completed with no issues matching your `fail_on` criteria
+- **Non-zero**: Scan found issues that match your `fail_on` criteria, or an error occurred
 
 ```yaml
-# This configuration will cause the action to return a non-zero exit code
-# if ANY vulnerabilities are found at these severity levels
+# This configuration will cause a non-zero exit code
+# if ANY issues are found at these severity levels
 fail_on: 'critical=1,high=1,medium=1,informational=1'
 ```
+
+#### Image Scans
+
+For image scans, the exit code is determined by the **image assessment policy** configured in your Falcon console — not by the `fail_on` parameter (which only applies to IaC scans).
+
+- **`0`**: The image meets the assessment policy defined in the Falcon console
+- **Non-zero (e.g., `2`)**: The image does not meet the policy requirements
+
+To change what triggers a non-zero exit code for image scans, update the image assessment policy in your [Falcon console](https://falcon.crowdstrike.com) under **Falcon Cloud Security** > **Image Assessment Policies**.
 
 ## Examples
 
@@ -271,7 +338,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Run FCS IaC Scan
-  uses: crowdstrike/fcs-action@v4.0.0
+  uses: crowdstrike/fcs-action@v4.0.1
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-1'
@@ -285,7 +352,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Run FCS IaC Scan
-  uses: crowdstrike/fcs-action@v4.0.0
+  uses: crowdstrike/fcs-action@v4.0.1
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-2'
@@ -300,7 +367,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Run FCS IaC Scan
-  uses: crowdstrike/fcs-action@v4.0.0
+  uses: crowdstrike/fcs-action@v4.0.1
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-2'
@@ -315,7 +382,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Run FCS IaC Scan with Project Name
-  uses: crowdstrike/fcs-action@v4.0.0
+  uses: crowdstrike/fcs-action@v4.0.1
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-1'
@@ -333,7 +400,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Run FCS IaC Scan
-  uses: crowdstrike/fcs-action@v4.0.0
+  uses: crowdstrike/fcs-action@v4.0.1
   id: fcs
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
@@ -356,7 +423,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Run FCS IaC Scan
-  uses: crowdstrike/fcs-action@v4.0.0
+  uses: crowdstrike/fcs-action@v4.0.1
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-2'
@@ -375,7 +442,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Scan Container Image
-  uses: crowdstrike/fcs-action@v4.0.0
+  uses: crowdstrike/fcs-action@v4.0.1
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-1'
@@ -392,7 +459,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Scan Container Image with Strict Digest Validation
-  uses: crowdstrike/fcs-action@v4.0.0
+  uses: crowdstrike/fcs-action@v4.0.1
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-1'
@@ -406,11 +473,12 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 ```
 <!-- x-release-please-end -->
 
-### Continue pipeline on zero exit code (no vulnerabilities match fail_on criteria)
+### Continue pipeline on zero exit code (image passes assessment policy)
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Scan Container Image
-  uses: crowdstrike/fcs-action@v4.0.0
+  uses: crowdstrike/fcs-action@v4.0.1
+  id: fcs
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-1'
@@ -421,9 +489,9 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
   env:
     FALCON_CLIENT_SECRET: ${{ secrets.FALCON_CLIENT_SECRET }}
 
-- name: Continue piepline to push image, etc
-    if: steps.fcs.outputs.exit-code = 0
-    ...
+- name: Continue pipeline to push image, etc
+  if: steps.fcs.outputs.exit-code == 0
+  ...
 ```
 <!-- x-release-please-end -->
 
@@ -431,7 +499,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Scan Image for Vulnerabilities Only
-  uses: crowdstrike/fcs-action@v4.0.0
+  uses: crowdstrike/fcs-action@v4.0.1
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-2'
@@ -452,7 +520,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Generate SBOM
-  uses: crowdstrike/fcs-action@v4.0.0
+  uses: crowdstrike/fcs-action@v4.0.1
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'eu-1'
@@ -470,7 +538,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Advanced Image Scan
-  uses: crowdstrike/fcs-action@v4.0.0
+  uses: crowdstrike/fcs-action@v4.0.1
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-1'
@@ -495,7 +563,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Scan and Upload to Falcon
-  uses: crowdstrike/fcs-action@v4.0.0
+  uses: crowdstrike/fcs-action@v4.0.1
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-1'
@@ -514,7 +582,7 @@ fail_on: 'critical=1,high=1,medium=1,informational=1'
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Scan Multi-Platform Image
-  uses: crowdstrike/fcs-action@v4.0.0
+  uses: crowdstrike/fcs-action@v4.0.1
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-2'
@@ -537,7 +605,7 @@ You can also use configuration files to customize the scan parameters. For more 
 <!-- x-release-please-start-version -->
 ```yaml
 - name: Run FCS IaC Scan
-  uses: crowdstrike/fcs-action@v4.0.0
+  uses: crowdstrike/fcs-action@v4.0.1
   with:
     falcon_client_id: ${{ vars.FALCON_CLIENT_ID }}
     falcon_region: 'us-1'
